@@ -100,6 +100,9 @@ COLUMN_LABELS = {
     "video_mode": "Video Mode",
     "video_link": "Video Link",
     "files_link": "Files Link",
+    "has_cv": "CV",
+    "has_certificates": "Certificates",
+    "has_video": "Video",
     # Step 5 — Teaching Philosophy
     "assess_proficiency": "How do you assess proficiency?",
     "tailor_lessons": "How do you tailor lessons?",
@@ -267,7 +270,8 @@ def render_table(df):
 
     summary_cols = [
         "Submission Date", "Name", "Email", "Country of Origin",
-        "Type of Spanish", "Years Teaching", "Score", "Verdict", "Ideal Rate (USD)",
+        "Type of Spanish", "Years Teaching", "Ideal Rate (USD)", "Score", "Verdict",
+        "CV", "Certificates", "Video",
     ]
     available = [c for c in summary_cols if c in df.columns]
 
