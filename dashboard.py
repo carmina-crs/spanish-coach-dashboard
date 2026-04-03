@@ -235,6 +235,15 @@ def render_filters(df):
             if selected:
                 filtered = filtered[filtered["Country of Origin"].isin(selected)]
 
+    # Type of Spanish filter
+    if "Type of Spanish" in filtered.columns:
+        types = sorted(filtered["Type of Spanish"].dropna().unique())
+        types = [t for t in types if t.strip()]
+        if types:
+            selected = st.sidebar.multiselect("Type of Spanish:", types)
+            if selected:
+                filtered = filtered[filtered["Type of Spanish"].isin(selected)]
+
     # Score range
     if "Score" in filtered.columns:
         scores = pd.to_numeric(filtered["Score"], errors="coerce")
