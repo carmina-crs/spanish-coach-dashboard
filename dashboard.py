@@ -267,7 +267,7 @@ def render_table(df):
 
     summary_cols = [
         "Submission Date", "Name", "Email", "Country of Origin",
-        "Years Teaching", "Score", "Verdict", "Ideal Rate (USD)",
+        "Type of Spanish", "Years Teaching", "Score", "Verdict", "Ideal Rate (USD)",
     ]
     available = [c for c in summary_cols if c in df.columns]
 
