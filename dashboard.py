@@ -105,6 +105,8 @@ COLUMN_LABELS = {
     "has_cv": "CV",
     "has_certificates": "Certificates",
     "has_video": "Video",
+    "status": "Status",
+    "notes": "Notes",
     # Step 5 — Teaching Philosophy
     "assess_proficiency": "How do you assess proficiency?",
     "tailor_lessons": "How do you tailor lessons?",
@@ -171,11 +173,34 @@ def load_applications():
         if not data:
             return pd.DataFrame()
         df = pd.DataFrame(data)
-        df.drop(columns=["id"], errors="ignore", inplace=True)
+        # Keep id column as "ID" for update operations
+        if "id" in df.columns:
+            df.rename(columns={"id": "ID"}, inplace=True)
         df.rename(columns=COLUMN_LABELS, inplace=True)
         return df
     except Exception:
         return pd.DataFrame()
+
+
+def update_application(record_id: int, status: str, notes: str) -> bool:
+    """Update status and notes for an application in Supabase."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return False
+    try:
+        resp = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/applications?id=eq.{record_id}",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            json={"status": status, "notes": notes},
+        )
+        resp.raise_for_status()
+        return True
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +298,7 @@ def render_table(df):
     summary_cols = [
         "Submission Date", "Name", "Email", "Country of Origin",
         "Type of Spanish", "Years Teaching", "Ideal Rate (USD)", "Score", "Verdict",
-        "CV", "Certificates", "Video",
+        "Status", "CV", "Certificates", "Video",
     ]
     available = [c for c in summary_cols if c in df.columns]
 
@@ -487,6 +512,38 @@ def render_detail_view(df):
 
     idx = options.index(selected)
     row = df.iloc[idx]
+
+    # Status & Notes editor
+    record_id = row.get("ID")
+    if record_id is not None:
+        st.markdown("#### Review & Decision")
+        status_options = ["Pending", "Shortlisted", "Hired", "Rejected"]
+        current_status = str(row.get("Status", "Pending") or "Pending")
+        if current_status not in status_options:
+            current_status = "Pending"
+        current_notes = str(row.get("Notes", "") or "")
+
+        col_s, col_btn = st.columns([2, 1])
+        with col_s:
+            new_status = st.selectbox(
+                "Status:", status_options,
+                index=status_options.index(current_status),
+                key=f"status_{record_id}",
+            )
+        new_notes = st.text_area(
+            "Internal notes:", value=current_notes,
+            height=100, key=f"notes_{record_id}",
+        )
+        with col_btn:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Save changes", key=f"save_{record_id}", type="primary",
+                         use_container_width=True):
+                if update_application(int(record_id), new_status, new_notes):
+                    st.success("Saved.")
+                    st.rerun()
+                else:
+                    st.error("Failed to save.")
+        st.markdown("---")
 
     # PDF download button
     try:
