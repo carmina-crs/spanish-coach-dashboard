@@ -477,6 +477,45 @@ def main():
 
     filtered_df = render_filters(df)
 
+    st.markdown(
+        """
+        <style>
+        div[data-baseweb="tab-list"] {
+            gap: 12px;
+        }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"] {
+            height: 60px;
+            padding: 0 28px;
+            font-size: 20px;
+            font-weight: 700;
+            border-radius: 10px 10px 0 0;
+            color: white !important;
+        }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"]:nth-child(1) {
+            background-color: #2980b9;
+        }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"]:nth-child(1):hover {
+            background-color: #1f6aa5;
+        }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"]:nth-child(2) {
+            background-color: #27ae60;
+        }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"]:nth-child(2):hover {
+            background-color: #1e8449;
+        }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"][aria-selected="true"] {
+            box-shadow: 0 -4px 0 #e74c3c inset;
+        }
+        div[data-baseweb="tab-list"] button[data-baseweb="tab"] p {
+            font-size: 20px !important;
+            font-weight: 700 !important;
+            color: white !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     tab1, tab2 = st.tabs(["Table View", "Detail View"])
     with tab1:
         render_table(filtered_df)
