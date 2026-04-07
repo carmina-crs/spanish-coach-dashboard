@@ -253,9 +253,10 @@ def render_filters(df):
         status_values = [s if s.strip() else "Pending" for s in status_values]
         status_values = sorted(set(status_values))
         if status_values:
-            selected = st.sidebar.multiselect("Status:", status_values, default=status_values)
-            normalized = filtered["Status"].fillna("").astype(str).replace("", "Pending")
-            filtered = filtered[normalized.isin(selected)]
+            selected = st.sidebar.multiselect("Status:", status_values)
+            if selected:
+                normalized = filtered["Status"].fillna("").astype(str).replace("", "Pending")
+                filtered = filtered[normalized.isin(selected)]
 
     # Country filter
     if "Country of Origin" in filtered.columns:
