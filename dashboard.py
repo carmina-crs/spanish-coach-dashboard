@@ -247,13 +247,15 @@ def render_filters(df):
         )
         filtered = filtered[mask]
 
-    # Verdict filter
-    if "Verdict" in filtered.columns:
-        verdicts = sorted(filtered["Verdict"].dropna().unique())
-        verdicts = [v for v in verdicts if v.strip()]
-        if verdicts:
-            selected = st.sidebar.multiselect("Verdict:", verdicts, default=verdicts)
-            filtered = filtered[filtered["Verdict"].isin(selected)]
+    # Status filter
+    if "Status" in filtered.columns:
+        status_values = sorted(filtered["Status"].fillna("").astype(str).unique())
+        status_values = [s if s.strip() else "Pending" for s in status_values]
+        status_values = sorted(set(status_values))
+        if status_values:
+            selected = st.sidebar.multiselect("Status:", status_values, default=status_values)
+            normalized = filtered["Status"].fillna("").astype(str).replace("", "Pending")
+            filtered = filtered[normalized.isin(selected)]
 
     # Country filter
     if "Country of Origin" in filtered.columns:
