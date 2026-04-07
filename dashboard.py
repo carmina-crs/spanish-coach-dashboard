@@ -11,6 +11,8 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime
+from fpdf import FPDF
+from io import BytesIO
 
 # ---------------------------------------------------------------------------
 # Config
@@ -291,6 +293,184 @@ def render_table(df):
     )
 
 
+# ---------------------------------------------------------------------------
+# PDF Generation
+# ---------------------------------------------------------------------------
+
+# Full question text exactly as shown in the portal (for PDF output)
+PDF_SECTIONS = [
+    ("Personal Information", [
+        ("Full Name", "Name"),
+        ("Email", "Email"),
+        ("Age", "Age"),
+        ("Country of Origin", "Country of Origin"),
+        ("Current Location", "Current Location"),
+        ("Time Zone", "Time Zone"),
+        ("Mobile Number", "Mobile"),
+        ("WhatsApp Number", "WhatsApp"),
+        ("Address", "Address"),
+    ]),
+    ("Employment Details", [
+        ("Tax Information", "Tax Information"),
+        ("Payment Preference", "Payment Preference"),
+        ("Teaching Schedule / Availability", "Teaching Schedule"),
+        ("Online Profile Link", "Profile Link"),
+        ("English Level", "English Level"),
+        ("Ideal Hourly Rate (USD)", "Ideal Rate (USD)"),
+        ("Preferred Hours per Week", "Hours per week"),
+    ]),
+    ("Teaching Background", [
+        ("Are you a native Spanish speaker?", "Native Speaker"),
+        ("What type/variety of Spanish do you speak?", "Type of Spanish"),
+        ("Years of Spanish teaching experience", "Years Teaching"),
+        ("Teaching certifications / qualifications", "Certifications"),
+        ("How many students have you taught?", "Students Taught"),
+        ("Can you teach all levels (A1-C2)?", "Teach A1-C2"),
+        ("If not all levels, which levels?", "Levels Detail"),
+        ("Do you have DELE exam preparation experience?", "DELE Experience"),
+        ("DELE experience details", "DELE Detail"),
+        ("Current/previous teaching platforms", "Current Platforms"),
+        ("Testimonial / review link", "Testimonial Link"),
+    ]),
+    ("Teaching Philosophy, Engagement & Motivation (Step 5)", [
+        ("1. How do you assess a student's proficiency in Spanish before starting lessons?", "How do you assess proficiency?"),
+        ("2. How do you tailor your lessons to suit different learning styles and proficiency levels?", "How do you tailor lessons?"),
+        ("3. Can you give an example of a particularly successful lesson or course you've delivered? What made it effective?", "Successful lesson example"),
+        ("4. How do you keep online lessons engaging and interactive for students?", "Keeping online lessons engaging"),
+        ("5. How long do students typically stay with you, and what do you think contributes to student retention?", "Student retention"),
+        ("6. How do you motivate students who are struggling or losing interest?", "Motivating struggling students"),
+        ("7. What do you enjoy most about the teaching process?", "What do you enjoy about teaching?"),
+    ]),
+    ("Technology, Assessment & Adapting to Challenges (Step 6)", [
+        ("1. Do you incorporate multimedia resources or cultural content into your lessons? If yes, examples?", "Multimedia & cultural content"),
+        ("2. Do you have a quality microphone, webcam, stable internet connection, and a quiet, well-lit workspace?", "Tech setup (mic, webcam, internet)"),
+        ("3. Which software or platforms do you use for conducting online classes?", "Software / platforms used"),
+        ("4. How do you assess your students' progress, and how often do you provide updates or evaluations?", "Assessing student progress"),
+        ("5. How do you provide constructive and motivating feedback to your students?", "Feedback style"),
+        ("6. Can you share an example of a time when you had to adapt your teaching approach to meet the needs of a particularly challenging student?", "Adapting teaching approach"),
+        ("7. Can you give an example of a cultural lesson or activity that you believe is essential for students learning Spanish?", "Cultural lesson example"),
+    ]),
+    ("Professional Development & Scenarios (Step 7)", [
+        ("1. How do you continue to improve your Spanish teaching skills?", "How do you improve your skills?"),
+        ("2. What areas of Spanish teaching excite you most?", "Excited areas of teaching"),
+        ("3. How do you approach correcting a student's grammar errors?", "Grammar error approach"),
+        ("4. How would you structure lesson plans for students of different levels?", "Lesson plan for different levels"),
+    ]),
+    ("Team, Communication & Rate (Step 8)", [
+        ("1. How do you respond to constructive criticism from a supervisor?", "Handling criticism"),
+        ("2. How comfortable are you working closely with a team?", "Teamwork comfort"),
+        ("3. Are you comfortable following a set process rather than always doing things your own way?", "Comfortable following set process"),
+        ("4. In our program, the first session must give the student a \"quick win\". How would you do this in practice?", "First session quick win"),
+        ("5. Are you comfortable with session notes and tracker updates immediately after each session?", "Session notes & tracker updates"),
+        ("6. Will you respond to student/team messages within 24 hours?", "Respond within 24h"),
+    ]),
+    ("Program Understanding Quiz (Step 9)", [
+        ("1. What are the key commitments and promises we make to students enrolled in the program?", "Quiz Q1"),
+        ("2. What should a coach do upon receiving a student's study plan from the team?", "Quiz Q2"),
+        ("3. Describe what the 12-week study plan typically includes.", "Quiz Q3"),
+        ("4. What should coaches do with the study plan every 2-3 weeks?", "Quiz Q4"),
+        ("5. What are the weekly non-negotiable tasks assigned to students, and what is the coach's responsibility regarding these?", "Quiz Q5"),
+        ("6. When and how should the coach reach out to the student upon receiving their details from the team?", "Quiz Q6"),
+        ("7. How will you use the student details provided by the team (level, goals, interests, challenges) to prepare for your first session?", "Quiz Q7"),
+        ("8. What is the goal of the first session, and what should it NOT be focused entirely on?", "Quiz Q8"),
+        ("9. What is the purpose of the student profile sheet, and how often should it be updated?", "Quiz Q9"),
+        ("10. Explain the BAMFAM approach and how it should be applied in sessions.", "Quiz Q10"),
+        ("11. Who is responsible for checking and providing feedback on the student's essay exercises, and how should students submit their essays?", "Quiz Q11"),
+        ("12. What is the expected response time for coaches to reply to student or team messages on weekdays and weekends?", "Quiz Q12"),
+    ]),
+    ("AI Assessment", [
+        ("Overall Score", "Score"),
+        ("Verdict", "Verdict"),
+        ("Summary", "Summary"),
+    ]),
+    ("Files Submitted", [
+        ("CV / Resume uploaded", "CV"),
+        ("Certificates uploaded", "Certificates"),
+        ("Video submitted", "Video"),
+        ("Video Mode", "Video Mode"),
+        ("Video Link", "Video Link"),
+        ("Files Folder Link", "Files Link"),
+    ]),
+]
+
+
+def _clean_text(text: str) -> str:
+    """Replace problematic unicode characters for PDF (latin-1)."""
+    replacements = {
+        "\u2019": "'", "\u2018": "'",
+        "\u201c": '"', "\u201d": '"',
+        "\u2013": "-", "\u2014": "-",
+        "\u2026": "...",
+        "\u00a0": " ",
+        "\u2192": "->", "\u2190": "<-",
+        "\u2705": "[Yes]", "\u274c": "[No]",
+    }
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+    # Drop anything else that can't be encoded in latin-1
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+
+def generate_applicant_pdf(row) -> bytes:
+    """Generate a PDF for a single applicant with all questions and answers."""
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Header
+    pdf.set_fill_color(26, 82, 118)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 12, _clean_text("Spanish Coach Application"), new_x="LMARGIN", new_y="NEXT", fill=True, align="C")
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 8, _clean_text("My Daily Spanish"), new_x="LMARGIN", new_y="NEXT", fill=True, align="C")
+    pdf.ln(4)
+
+    # Applicant name banner
+    name = str(row.get("Name", "Unknown"))
+    submission = str(row.get("Submission Date", ""))
+    pdf.set_fill_color(230, 240, 250)
+    pdf.set_text_color(26, 82, 118)
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.cell(0, 9, _clean_text(name), new_x="LMARGIN", new_y="NEXT", fill=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 6, _clean_text(f"Submitted: {submission}"), new_x="LMARGIN", new_y="NEXT", fill=True)
+    pdf.ln(4)
+    pdf.set_text_color(0, 0, 0)
+
+    # Sections
+    for section_name, qas in PDF_SECTIONS:
+        # Section header
+        pdf.set_fill_color(41, 128, 185)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 8, _clean_text(section_name), new_x="LMARGIN", new_y="NEXT", fill=True)
+        pdf.ln(2)
+        pdf.set_text_color(0, 0, 0)
+
+        for question, field_key in qas:
+            value = str(row.get(field_key, "")).strip()
+            if not value or value.lower() == "nan":
+                continue
+
+            # Question
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.multi_cell(0, 5, _clean_text(question))
+            # Answer
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(60, 60, 60)
+            pdf.multi_cell(0, 5, _clean_text(value))
+            pdf.set_text_color(0, 0, 0)
+            pdf.ln(2)
+
+        pdf.ln(3)
+
+    output = pdf.output(dest="S")
+    if isinstance(output, str):
+        return output.encode("latin-1")
+    return bytes(output)
+
+
 def render_detail_view(df):
     st.markdown("### Applicant Details")
 
@@ -307,6 +487,20 @@ def render_detail_view(df):
 
     idx = options.index(selected)
     row = df.iloc[idx]
+
+    # PDF download button
+    try:
+        pdf_bytes = generate_applicant_pdf(row)
+        safe_name = str(row.get("Name", "applicant")).replace(" ", "_")
+        st.download_button(
+            "Download Application as PDF",
+            data=pdf_bytes,
+            file_name=f"application_{safe_name}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf",
+            type="primary",
+        )
+    except Exception as e:
+        st.warning(f"PDF generation failed: {e}")
 
     sections = {
         "Personal Information": [
