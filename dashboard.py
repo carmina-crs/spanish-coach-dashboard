@@ -20,7 +20,7 @@ SUPABASE_URL = st.secrets.get("supabase_url", "")
 SUPABASE_KEY = st.secrets.get("supabase_key", "")
 
 st.set_page_config(
-    page_title="Coach Applications Dashboard",
+    page_title="Spanish Coach Applications Dashboard",
     page_icon="📋",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -297,9 +297,9 @@ def render_table(df):
         return
 
     summary_cols = [
-        "Submission Date", "Name", "Email", "Country of Origin",
+        "Submission Date", "Name", "Email", "Status", "Country of Origin",
         "Type of Spanish", "Years Teaching", "Ideal Rate (USD)", "Score", "Verdict",
-        "Status", "CV", "Certificates", "Video",
+        "CV", "Certificates", "Video",
     ]
     available = [c for c in summary_cols if c in df.columns]
 
@@ -453,7 +453,7 @@ def render_detail_view(df):
 def main():
     st.markdown("""
     <div class="dashboard-header">
-        <h1>Coach Applications Dashboard</h1>
+        <h1>Spanish Coach Applications Dashboard</h1>
         <p>My Daily Spanish — View and manage coach applications</p>
     </div>
     """, unsafe_allow_html=True)
